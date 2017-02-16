@@ -32,7 +32,6 @@ import re
 # ---- Constants ---------------------------------------------------------
 
 __all__ = (
-    'FilterModule',
     'modgen',
     'modwalk',
 )
@@ -50,12 +49,6 @@ _EXTS_PY = set((
 _PKG_MOD = '__init__'
 
 _RE_MOD_NAME = r'^[A-Za-z_][0-9A-Za-z_]*$'
-
-# ---- Exceptions --------------------------------------------------------
-
-# ========================================================================
-class FilterModule(Exception):
-    pass
 
 # ---- Functions ---------------------------------------------------------
 
@@ -135,12 +128,18 @@ def modwalk(mod_specs, callbacks):
     """
     TODO
     """
-    for mod in modgen(mod_specs):
-        for callback in callbacks:
-            callback_name = getattr(callback, '__name__', repr(callable))
-            _LOGGER.debug('calling %s(%s)', callback_name, mod.__name__)
+    pipeline = modgen(mod_specs)
 
-            try:
-                callback(mod)
-            except FilterModule:
-                continue
+    for callback in callbacks:
+        callback_name = getattr(callback, '__name__', repr(callable))
+        _LOGGER.debug('adding %s to callback pipeline', callback_name)
+        pipeline = callback(pipeline)
+
+    try:
+        pipeline = iter(pipeline)
+    except TypeError:
+        # pipeline was not iterable, so assume it was already consumed
+        pass
+    else:
+        # Make sure pipeline is consumed
+        collections.deque(pipeline, maxlen=0)

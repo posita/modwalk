@@ -20,13 +20,13 @@ if TYPE_CHECKING:
 
 from builtins import *  # noqa: F401,F403 # pylint: disable=redefined-builtin,unused-wildcard-import,useless-suppression,wildcard-import
 from future.builtins.disabled import *  # noqa: F401,F403 # pylint: disable=no-name-in-module,redefined-builtin,unused-wildcard-import,useless-suppression,wildcard-import
+from future.utils import native_str
+from past.builtins import execfile  # type: ignore
 
 # ---- Imports -----------------------------------------------------------
 
-import builtins
 import argparse
 import importlib
-import inspect
 import logging
 import os
 import sys
@@ -52,7 +52,7 @@ _LOG_LVL_DFLT = logging.getLevelName(logging.WARNING)
 # ---- Classes -----------------------------------------------------------
 
 # ========================================================================
-class CallbackAppender(argparse.Action):
+class EvalAppender(argparse.Action):
 
     # ---- Overrides -----------------------------------------------------
 
@@ -64,32 +64,85 @@ class CallbackAppender(argparse.Action):
             callbacks = []
             setattr(namespace, self.dest, callbacks)
 
+        ns = namespace.imported_modules
+
+        for value in values:
+            callback = eval(value, ns, ns)
+
+            if not callable(callback):
+                raise ValueError('"{}" is not a callable expression'.format(value))
+
+            callbacks.append(callback)
+
+# ========================================================================
+class FileSymbolAppender(argparse.Action):
+
+    # ---- Constructor ---------------------------------------------------
+
+    # ====================================================================
+    def __init__(self, *args, **kw):
+        super(FileSymbolAppender, self).__init__(*args, **kw)
+        self._loaded_paths = {}
+
+    # ---- Public hooks --------------------------------------------------
+
+    # ====================================================================
+    def __call__(self, parser, namespace, values, option_string=None):
+        callbacks = getattr(namespace, self.dest)
+
+        if not values \
+                or callbacks is None:
+            callbacks = []
+            setattr(namespace, self.dest, callbacks)
+
+        ns = namespace.imported_modules
+
         for value in values:
             try:
-                mod_name, callback_name = value.rsplit('.')
+                path, symbol = value.rsplit(':', 1)
             except ValueError:
-                mod_name = '.'
-                callback_name = value
+                raise ValueError('"{}" must be in the format FILE:SYMBOL'.format(value))
 
-            ns = dict(inspect.getmembers(builtins))
-            ns.update(globals())
+            path = os.path.realpath(path)
 
+            if path in self._loaded_paths:
+                _LOGGER.debug('file "%s" already loaded', path)
+            else:
+                _LOGGER.debug('loading "%s"', path)
+                execfile(path, ns, ns)
+                self._loaded_paths[path] = ns
+
+            callback = self._loaded_paths[path][symbol]
+
+            if not callable(callback):
+                raise ValueError('"{}" does not reference a callable expression'.format(value))
+
+            callbacks.append(callback)
+
+# ========================================================================
+class ImportAppender(argparse.Action):
+
+    # ---- Public hooks --------------------------------------------------
+
+    # ====================================================================
+    def __call__(self, parser, namespace, values, option_string=None):
+        modules = getattr(namespace, self.dest)
+
+        if not values \
+                or modules is None:
+            modules = {}
+            setattr(namespace, self.dest, modules)
+
+        for value in values:
             try:
-                if mod_name == '.':
-                    callback = ns[callback_name]
-                else:
-                    mod = __import__(mod_name, ns, ns, (callback_name,))
-                    callback = getattr(mod, callback_name)
-
-                if not callable(callback):
-                    raise ValueError(u'"{}" is not callable'.format(value))
+                mod = importlib.import_module(value)
             except Exception:  # pylint: disable=broad-except
-                if namespace.ignore_import_errors:
-                    logimporterror(_LOGGER, value)
+                if namespace.suppress_import_errors:
+                    logimporterror(_LOGGER, value, logging.WARNING)
                 else:
                     raise
             else:
-                callbacks.append(callback)
+                modules[value] = mod
 
 # ========================================================================
 class ModuleAppender(argparse.Action):
@@ -104,7 +157,7 @@ class ModuleAppender(argparse.Action):
 
     def __init__(self, should_recurse, *args, **kw):
         super(ModuleAppender, self).__init__(*args, **kw)
-        self._should_recurse = should_recurse
+        self._should_recurse = int(bool(should_recurse))
 
     # ---- Overrides -----------------------------------------------------
 
@@ -119,8 +172,8 @@ class ModuleAppender(argparse.Action):
             try:
                 mod = importlib.import_module(value)
             except Exception:  # pylint: disable=broad-except
-                if namespace.ignore_import_errors:
-                    logimporterror(_LOGGER, value)
+                if namespace.suppress_import_errors:
+                    logimporterror(_LOGGER, value, logging.WARNING)
                 else:
                     raise
             else:
@@ -154,19 +207,14 @@ def _main(
     argv=None,  # type: typing.Optional[typing.Sequence[typing.Text]]
 ):  # type: (...) -> int
     parser = _parser()
-    ns = parser.parse_args(argv)
+    namespace = parser.parse_args(argv)
 
-    if not ns.mod_specs:
+    if not namespace.mod_specs:
         parser.print_help()
 
         return 0
 
-    if ns.callbacks is None:
-        callbacks = (print,)
-    else:
-        callbacks = ns.callbacks
-
-    modwalk(ns.mod_specs, callbacks)
+    modwalk(namespace.mod_specs, namespace.callbacks)
 
     return 0
 
@@ -175,7 +223,7 @@ def _parser(
     prog=None,  # type: typing.Optional[typing.Text]
 ):  # type: (...) -> argparse.ArgumentParser
     description = u"""
-Load each given module and invoke each given callback for each loaded module.
+Invoke callback chains on loaded modules.
 """.strip()
 
     log_lvls = u', '.join(u'"{}"'.format(logging.getLevelName(l)) for l in (logging.CRITICAL, logging.ERROR, logging.WARNING, logging.INFO, logging.DEBUG))
@@ -191,53 +239,83 @@ It defaults to "{log_fmt_dflt}".
 
     parser.add_argument(u'-V', u'--version', action='version', version=u'%(prog)s {}'.format(__release__))
 
-    callback_metavar = u'CALLBACK'
+    eval_callback_metavar = u'CALLBACK_EXPRESSION'
+    file_callback_metavar = u'FILE:CALLBACK_NAME'
     mod_spec_metavar = u'MODULE'
+    callback_dflt_str = u"functools.partial(itertools.imap, lambda x: print('{}'.format(x.__name__)) or x)"
 
     module_callback_group = parser.add_argument_group(
         u'modules and callbacks',
         description=u"""
-{callback_metavar} is a fully qualified name of an importable callable.
+{eval_callback_metavar} is an expression that evaluates to a callable that takes a single value.
+The return value of each callback is passed to the next callback in the chain.
+The iterable passed to the first callback in the chain will be all loaded (and discovered) {mod_spec_metavar}s.
+The default callback chain consists of single callable that will print out each loaded module and return the module object: ``{callback_dflt}``.
 {mod_spec_metavar} is a fully qualified module name suitable for use in an import statement.
 Import errors are always ignored when attempting to discover sub-modules and sub-packages.
-Each {callback_metavar} should take the loaded {mod_spec_metavar} as its only argument.
-If a {callback_metavar} raises a ``modwalk.FilterModule`` exception, then no other {callback_metavar} will be called for that {mod_spec_metavar}.
-""".strip().format(callback_metavar=callback_metavar, mod_spec_metavar=mod_spec_metavar),
+""".strip().format(callback_dflt=native_str(callback_dflt_str), eval_callback_metavar=eval_callback_metavar, mod_spec_metavar=mod_spec_metavar),
     )
 
     callbacks_dest = 'callbacks'
 
+    import functools
+    import itertools
+
+    ns = {
+        functools.__name__: functools,
+        itertools.__name__: itertools,
+    }
+
+    callbacks_dflt = [eval(callback_dflt_str, ns, ns)]
+
     module_callback_group.add_argument(
         u'-C',
-        action=CallbackAppender,
+        action=EvalAppender,
+        default=callbacks_dflt,
         dest=callbacks_dest,
-        help=u'clear all {callback_metavar}s previously given on the command line'.format(callback_metavar=callback_metavar),
-        metavar=callback_metavar,
+        help=u'clear the callback chain of all prior callbacks',
+        metavar=eval_callback_metavar,
         nargs=0,
     )
 
     module_callback_group.add_argument(
-        u'-c',
-        action=CallbackAppender,
+        u'-e',
+        action=EvalAppender,
         dest=callbacks_dest,
-        help=u'load each {callback_metavar} to be called for each loaded {mod_spec_metavar}'.format(callback_metavar=callback_metavar, mod_spec_metavar=mod_spec_metavar),
-        metavar=callback_metavar,
+        help=u'evaluate each {eval_callback_metavar} add it to the callback chain'.format(eval_callback_metavar=eval_callback_metavar),
+        metavar=eval_callback_metavar,
         nargs='+',
     )
 
     module_callback_group.add_argument(
+        u'-f',
+        action=FileSymbolAppender,
+        dest=callbacks_dest,
+        help=u'load each {file_callback_metavar} add it to the callback chain'.format(file_callback_metavar=file_callback_metavar),
+        metavar=file_callback_metavar,
+        nargs='+',
+    )
+
+    imported_modules_metavar = mod_spec_metavar
+    imported_modules_dest = 'imported_modules'
+
+    module_callback_group.add_argument(
         u'-I',
-        action='store_false',
-        default=False,
-        dest='ignore_import_errors',
-        help=u'DO NOT ignore import errors for {callback_metavar}s and explicitly named {mod_spec_metavar}s (default)'.format(callback_metavar=callback_metavar, mod_spec_metavar=mod_spec_metavar),
+        action=ImportAppender,
+        default={},
+        dest=imported_modules_dest,
+        help=u'clear all {imported_modules_metavar}s loaded into scope for evaluating any prior {eval_callback_metavar}'.format(eval_callback_metavar=eval_callback_metavar, imported_modules_metavar=imported_modules_metavar),
+        metavar=imported_modules_metavar,
+        nargs=0,
     )
 
     module_callback_group.add_argument(
         u'-i',
-        action='store_true',
-        dest='ignore_import_errors',
-        help=u'ignore import errors for {callback_metavar}s and explicitly named {mod_spec_metavar}s'.format(callback_metavar=callback_metavar, mod_spec_metavar=mod_spec_metavar),
+        action=ImportAppender,
+        dest=imported_modules_dest,
+        help=u'load each {imported_modules_metavar} into scope for evaluating any subsequent {eval_callback_metavar}'.format(eval_callback_metavar=eval_callback_metavar, imported_modules_metavar=imported_modules_metavar),
+        metavar=imported_modules_metavar,
+        nargs='+',
     )
 
     mod_specs_dest = 'mod_specs'
@@ -245,8 +323,9 @@ If a {callback_metavar} raises a ``modwalk.FilterModule`` exception, then no oth
     module_callback_group.add_argument(
         u'-M',
         action=ModuleAppender.factory(True),
+        default=[],
         dest=mod_specs_dest,
-        help=u'load each {mod_spec_metavar} and discover and load any sub-modules or sub-packages'.format(mod_spec_metavar=mod_spec_metavar),
+        help=u'load each {mod_spec_metavar} and discover and load any sub-modules or sub-packages for passing to the first callback in the chain'.format(mod_spec_metavar=mod_spec_metavar),
         metavar=mod_spec_metavar,
         nargs='+',
     )
@@ -255,9 +334,26 @@ If a {callback_metavar} raises a ``modwalk.FilterModule`` exception, then no oth
         u'-m',
         action=ModuleAppender.factory(False),
         dest=mod_specs_dest,
-        help=u'load each {mod_spec_metavar}'.format(mod_spec_metavar=mod_spec_metavar),
+        help=u'load each {mod_spec_metavar} for passing to the first callback in the chain'.format(mod_spec_metavar=mod_spec_metavar),
         metavar=mod_spec_metavar,
         nargs='+',
+    )
+
+    suppress_import_errors_dest = 'suppress_import_errors'
+
+    module_callback_group.add_argument(
+        u'-S',
+        action='store_false',
+        default=False,
+        dest=suppress_import_errors_dest,
+        help=u'DO NOT suppress import errors for {eval_callback_metavar}s and explicitly named {mod_spec_metavar}s (default)'.format(eval_callback_metavar=eval_callback_metavar, mod_spec_metavar=mod_spec_metavar),
+    )
+
+    module_callback_group.add_argument(
+        u'-s',
+        action='store_true',
+        dest=suppress_import_errors_dest,
+        help=u'suppress import errors for {eval_callback_metavar}s and explicitly named {mod_spec_metavar}s'.format(eval_callback_metavar=eval_callback_metavar, mod_spec_metavar=mod_spec_metavar),
     )
 
     return parser

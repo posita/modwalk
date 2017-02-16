@@ -48,5 +48,5 @@ class ModwalkTestCase(unittest.TestCase):
 # ---- Initialization ----------------------------------------------------
 
 if __name__ == '__main__':
-    import test  # noqa: F401; pylint: disable=unused-import
+    import tests  # noqa: F401; pylint: disable=unused-import
     unittest.main()
