@@ -21,12 +21,12 @@ If those files are missing or appear to be modified from their originals, then p
 .. |CREDITS| replace:: ``CREDITS``
 .. _`CREDITS`: https://_skel.readthedocs.org/en/master/CREDITS.html
 
-.. image:: https://travis-ci.org/posita/_skel.svg?branch=master
-   :target: https://travis-ci.org/posita/_skel?branch=master
+.. image:: https://travis-ci.org/posita/modwalk.svg?branch=master
+   :target: https://travis-ci.org/posita/modwalk?branch=master
    :alt: [Build Status]
 
-.. image:: https://coveralls.io/repos/posita/_skel/badge.svg?branch=master
-   :target: https://coveralls.io/r/posita/_skel?branch=master
+.. image:: https://coveralls.io/repos/posita/modwalk/badge.svg?branch=master
+   :target: https://coveralls.io/r/posita/modwalk?branch=master
    :alt: [Coverage Status]
 
 Curious about integrating your project with the above services?
@@ -35,40 +35,40 @@ Jeff Knupp (|@jeffknupp|_) `describes how <https://www.jeffknupp.com/blog/2013/0
 .. |@jeffknupp| replace:: **@jeffknupp**
 .. _`@jeffknupp`: https://github.com/jeffknupp
 
-``_skel`` - Python Project Skeleton
-===================================
+``modwalk`` - TODO
+==================
 
-.. image:: https://img.shields.io/pypi/v/_skel.svg
-   :target: https://pypi.python.org/pypi/_skel
+.. image:: https://img.shields.io/pypi/v/modwalk.svg
+   :target: https://pypi.python.org/pypi/modwalk
    :alt: [master Version]
 
-.. image:: https://readthedocs.org/projects/_skel/badge/?version=master
-   :target: https://_skel.readthedocs.org/en/master/
+.. image:: https://readthedocs.org/projects/modwalk/badge/?version=master
+   :target: https://modwalk.readthedocs.org/en/master/
    :alt: [master Documentation]
 
-.. image:: https://img.shields.io/pypi/l/_skel.svg
+.. image:: https://img.shields.io/pypi/l/modwalk.svg
    :target: http://opensource.org/licenses/MIT
    :alt: [master License]
 
-.. image:: https://img.shields.io/pypi/pyversions/_skel.svg
-   :target: https://pypi.python.org/pypi/_skel
+.. image:: https://img.shields.io/pypi/pyversions/modwalk.svg
+   :target: https://pypi.python.org/pypi/modwalk
    :alt: [master Supported Python Versions]
 
-.. image:: https://img.shields.io/pypi/implementation/_skel.svg
-   :target: https://pypi.python.org/pypi/_skel
+.. image:: https://img.shields.io/pypi/implementation/modwalk.svg
+   :target: https://pypi.python.org/pypi/modwalk
    :alt: [master Supported Python Implementations]
 
-.. image:: https://img.shields.io/pypi/status/_skel.svg
-   :target: https://pypi.python.org/pypi/_skel
+.. image:: https://img.shields.io/pypi/status/modwalk.svg
+   :target: https://pypi.python.org/pypi/modwalk
    :alt: [master Development Stage]
 
 ..
 
-``_skel`` is a project skeleton for Python.
+``modwalk`` is TODO.
 It is licensed under the `MIT License <https://opensource.org/licenses/MIT>`_.
 See the |LICENSE|_ file for details.
-Source code is `available on GitHub <https://github.com/posita/_skel>`__.
-See `the docs <https://_skel.readthedocs.org/en/master/>`__ for more information.
+Source code is `available on GitHub <https://github.com/posita/modwalk>`__.
+See `the docs <https://modwalk.readthedocs.org/en/master/>`__ for more information.
 
 Examples
 --------
@@ -80,5 +80,5 @@ Coming soon.
 Issues
 ------
 
-If you find a bug, or want a feature, please `file an issue <https://github.com/posita/_skel/issues>`__ (if it hasn't already been filed).
-If you're willing and able, consider `contributing <https://_skel.readthedocs.org/en/master/contrib.html>`__.
+If you find a bug, or want a feature, please `file an issue <https://github.com/posita/modwalk/issues>`__ (if it hasn't already been filed).
+If you're willing and able, consider `contributing <https://modwalk.readthedocs.org/en/master/contrib.html>`__.

@@ -45,7 +45,7 @@ with open(os.path.join(_MY_DIR, 'tests', 'requirements.txt')) as f:
 # ---- Initialization --------------------------------------------------
 
 vers_info = {
-    '__path__': os.path.join(_MY_DIR, '_skel', 'version.py'),
+    '__path__': os.path.join(_MY_DIR, 'modwalk', 'version.py'),
 }
 
 if os.path.isfile(vers_info['__path__']):
@@ -59,13 +59,13 @@ __vers_str__ = vers_info.get('__vers_str__')
 __release__ = vers_info.get('__release__', __vers_str__)
 
 SETUP_ARGS = {
-    'name': 'py_skel',
+    'name': 'modwalk',
     'version': __vers_str__,
     'author': 'Matt Bogosian',
     'author_email': 'matt@bogosian.net',
-    'url': 'https://_skel.readthedocs.org/en/{}/'.format(__release__),
+    'url': 'https://modwalk.readthedocs.org/en/{}/'.format(__release__),
     'license': 'MIT License',
-    'description': 'Python Project Skeleton',
+    'description': 'TODO',
     'long_description': README,
 
     # From <https://pypi.python.org/pypi?%3Aaction=list_classifiers>
@@ -82,6 +82,7 @@ SETUP_ARGS = {
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: Implementation :: CPython',
         'Programming Language :: Python :: Implementation :: PyPy',
+        'Topic :: Software Development :: Libraries :: Python Modules',
     ),
 
     'packages': setuptools.find_packages(exclude=('tests',)),
@@ -93,7 +94,7 @@ SETUP_ARGS = {
 
     'entry_points': {
         'console_scripts': (
-            '_skel = _skel.main:main',
+            'modwalk = modwalk.main:main',
         ),
     },
 }

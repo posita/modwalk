@@ -18,35 +18,32 @@ If those files are missing or appear to be modified from their originals, then p
 Introduction
 ============
 
-``_skel`` is a project skeleton for Python.
+``modwalk`` is TODO.
 
 License
 -------
 
-``_skel`` is licensed under the `MIT License <https://opensource.org/licenses/MIT>`_.
+``modwalk`` is licensed under the `MIT License <https://opensource.org/licenses/MIT>`_.
 See the :doc:`LICENSE <LICENSE>` file for details.
-Source code is `available on GitHub <https://github.com/posita/_skel>`__.
+Source code is `available on GitHub <https://github.com/posita/modwalk>`__.
 
 Installation
 ------------
 
-This project is not meant to be installed as is, but rather cloned and then modified as necessary.
-It is intended that derived projects allow installation via ``pip``.
-
-Installation can be performed via ``pip`` (which will download and install the `latest release <https://pypi.python.org/pypi/_skel/>`__):
+Installation can be performed via ``pip`` (which will download and install the `latest release <https://pypi.python.org/pypi/modwalk/>`__):
 
 .. code-block:: console
 
-   % pip install _skel
+   % pip install modwalk
    ...
 
-Alternately, you can download the sources (e.g., `from GitHub <https://github.com/posita/_skel>`__) and run ``setup.py``:
+Alternately, you can download the sources (e.g., `from GitHub <https://github.com/posita/modwalk>`__) and run ``setup.py``:
 
 .. code-block:: console
 
-   % git clone https://github.com/posita/_skel
+   % git clone https://github.com/posita/modwalk
    ...
-   % cd _skel
+   % cd modwalk
    % python setup.py install
    ...
 
@@ -60,7 +57,7 @@ A modern version of Python is required:
 
 Python 2.6 will *not* work.
 
-``_skel`` has the following dependencies (which will be installed automatically):
+``modwalk`` has the following dependencies (which will be installed automatically):
 
 * |future|_
 

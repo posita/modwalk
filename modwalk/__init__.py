@@ -27,6 +27,7 @@ install_aliases()
 import logging as _logging
 
 from .main import *  # noqa: F401,F403 # pylint: disable=wildcard-import
+from .modwalk import *  # noqa: F401,F403; pylint: disable=unused-wildcard-import,wildcard-import
 from .version import __version__  # noqa: F401
 
 # ---- Data ------------------------------------------------------------
