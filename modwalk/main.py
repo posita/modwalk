@@ -26,14 +26,21 @@ from past.builtins import execfile  # type: ignore
 # ---- Imports -----------------------------------------------------------
 
 import argparse
+import collections
 import importlib
 import logging
 import os
 import sys
 
+from twisted import logger as t_logger
+from twisted.internet import defer as t_i_defer
+from twisted.internet import reactor as t_i_reactor
+from twisted.internet import task as t_i_task
+from twisted.python import failure as t_p_failure
+
 from .modwalk import (
     logimporterror,
-    modwalk,
+    modgen,
 )
 
 from .version import __release__
@@ -43,6 +50,8 @@ from .version import __release__
 __all__ = ()
 
 _LOGGER = logging.getLogger(__name__)
+_T_LOGGER = t_logger.Logger(__name__)
+_T_LOG_OBSERVER = t_logger.STDLibLogObserver()
 
 _LOG_LVL_ENV = 'LOG_LVL'
 _LOG_FMT_DFLT = '%(message)s'
@@ -52,79 +61,101 @@ _LOG_LVL_DFLT = logging.getLevelName(logging.WARNING)
 # ---- Classes -----------------------------------------------------------
 
 # ========================================================================
-class EvalAppender(argparse.Action):
+class CallbackAppender(argparse.Action):
+
+    # ---- Class methods -------------------------------------------------
+
+    @classmethod
+    def evalcallback(cls, value, ns):
+        args = ()
+        kw = {}
+
+        if value.startswith('@'):
+            try:
+                path, symbol = value[1:].rsplit(':', 1)
+            except ValueError:
+                raise ValueError('"{}" must be in the format @FILE:SYMBOL'.format(value))
+
+            path = os.path.realpath(path)
+            execfile(path, ns, ns)
+            callback = ns[symbol]
+        else:
+            callback = eval(value, ns, ns)
+
+            try:
+                callback, args, kw = callback
+            except TypeError:
+                pass
+            except ValueError:
+                try:
+                    callback, args = callback
+                except ValueError:
+                    pass
+
+        return (callback, args, kw)
+
+    @classmethod
+    def factory(cls, errback_options=(), both_options=()):
+        return lambda *_args, **_kw: cls(errback_options, both_options, *_args, **_kw)
+
+    # ---- Constructor ---------------------------------------------------
+
+    def __init__(self, errback_options, both_options, *args, **kw):
+        super(CallbackAppender, self).__init__(*args, **kw)
+        self._both_options = set(both_options)
+        self._errback_options = set(errback_options)
 
     # ---- Overrides -----------------------------------------------------
 
     def __call__(self, parser, namespace, values, option_string=None):
-        callbacks = getattr(namespace, self.dest)
+        d = getattr(namespace, self.dest)
 
         if not values \
-                or callbacks is None:
-            callbacks = []
-            setattr(namespace, self.dest, callbacks)
+                or d is None:
+            d = t_i_defer.Deferred()
+            setattr(namespace, self.dest, d)
 
-        ns = namespace.imported_modules
+        default_callback_vals = (t_i_defer.passthru, None, None)
 
-        for value in values:
-            callback = eval(value, ns, ns)
+        if len(values) == 0:
+            return
+        elif len(values) == 1:
+            evaled_callback_vals = self.evalcallback(values[0], dict(namespace.imported_modules))
 
-            if not callable(callback):
-                raise ValueError('"{}" is not a callable expression'.format(value))
-
-            callbacks.append(callback)
-
-# ========================================================================
-class FileSymbolAppender(argparse.Action):
-
-    # ---- Constructor ---------------------------------------------------
-
-    # ====================================================================
-    def __init__(self, *args, **kw):
-        super(FileSymbolAppender, self).__init__(*args, **kw)
-        self._loaded_paths = {}
-
-    # ---- Public hooks --------------------------------------------------
-
-    # ====================================================================
-    def __call__(self, parser, namespace, values, option_string=None):
-        callbacks = getattr(namespace, self.dest)
-
-        if not values \
-                or callbacks is None:
-            callbacks = []
-            setattr(namespace, self.dest, callbacks)
-
-        ns = namespace.imported_modules
-
-        for value in values:
-            try:
-                path, symbol = value.rsplit(':', 1)
-            except ValueError:
-                raise ValueError('"{}" must be in the format FILE:SYMBOL'.format(value))
-
-            path = os.path.realpath(path)
-
-            if path in self._loaded_paths:
-                _LOGGER.debug('file "%s" already loaded', path)
+            if option_string in self._errback_options:
+                callback, callback_args, callback_kw = default_callback_vals
+                errback, errback_args, errback_kw = evaled_callback_vals
+            elif option_string in self._both_options:
+                callback, callback_args, callback_kw = evaled_callback_vals
+                errback, errback_args, errback_kw = evaled_callback_vals
             else:
-                _LOGGER.debug('loading "%s"', path)
-                execfile(path, ns, ns)
-                self._loaded_paths[path] = ns
+                callback, callback_args, callback_kw = evaled_callback_vals
+                errback, errback_args, errback_kw = default_callback_vals
+        elif len(values) == 2:
+            callback, callback_args, callback_kw = self.evalcallback(values[0], dict(namespace.imported_modules))
+            errback, errback_args, errback_kw = self.evalcallback(values[1], dict(namespace.imported_modules))
+        else:
+            option_string_msg = ' given to option {}'.format(option_string) if option_string else ''
 
-            callback = self._loaded_paths[path][symbol]
+            raise ValueError('too many arguments ({}){}'.format(len(values), option_string_msg))
 
-            if not callable(callback):
-                raise ValueError('"{}" does not reference a callable expression'.format(value))
+        d.addCallbacks(callback, errback, callback_args, callback_kw, errback_args, errback_kw)
+        callback_name = None if callback is t_i_defer.passthru else getattr(callback, '__name__', repr(callback))
+        errback_name = None if errback is t_i_defer.passthru else getattr(errback, '__name__', repr(errback))
 
-            callbacks.append(callback)
+        if callback_name is not None \
+                and errback_name is not None:
+            _LOGGER.debug('added %s and %s to callback and errback chain, respectively', callback_name, errback_name)
+        elif callback_name is not None:
+            _LOGGER.debug('added %s to callback chain', callback_name)
+        elif errback_name is not None:
+            _LOGGER.debug('added %s to errback chain', errback_name)
 
 # ========================================================================
 class ImportAppender(argparse.Action):
 
-    # ---- Public hooks --------------------------------------------------
+    # ---- Overrides -----------------------------------------------------
 
-    # ====================================================================
     def __call__(self, parser, namespace, values, option_string=None):
         modules = getattr(namespace, self.dest)
 
@@ -196,6 +227,7 @@ def configlogging():  # type: (...) -> None
     logging.getLogger().setLevel(log_lvl)
     from . import LOGGER
     LOGGER.setLevel(log_lvl)
+    t_logger.globalLogBeginner.beginLoggingTo((_T_LOG_OBSERVER,), redirectStandardIO=False)
 
 # ========================================================================
 def main():  # type: (...) -> None
@@ -214,7 +246,33 @@ def _main(
 
         return 0
 
-    modwalk(namespace.mod_specs, namespace.callbacks)
+    d = t_i_task.deferLater(t_i_reactor, 0, modgen, namespace.mod_specs)
+    d.chainDeferred(namespace.deferred)
+
+    def _consumeall(_pipeline):
+        try:
+            _pipeline = iter(_pipeline)
+        except TypeError:
+            # _pipeline was not iterable, so assume it was already
+            # consumed
+            pass
+        else:
+            # Make sure pipeline is consumed
+            collections.deque(_pipeline, maxlen=0)
+
+    namespace.deferred.addCallback(_consumeall)
+
+    def _stop(_arg):
+        if isinstance(_arg, t_p_failure.Failure):
+            _T_LOGGER.failure('Unhandled error', _arg)
+
+        t_i_reactor.stop()
+
+        # Suppress "Main loop terminated." message
+        t_logger.globalLogPublisher.removeObserver(_T_LOG_OBSERVER)
+
+    namespace.deferred.addBoth(_stop)
+    t_i_reactor.run()
 
     return 0
 
@@ -239,24 +297,26 @@ It defaults to "{log_fmt_dflt}".
 
     parser.add_argument(u'-V', u'--version', action='version', version=u'%(prog)s {}'.format(__release__))
 
-    eval_callback_metavar = u'CALLBACK_EXPRESSION'
-    file_callback_metavar = u'FILE:CALLBACK_NAME'
+    eval_callback_metavar = u'CALLBACK'
     mod_spec_metavar = u'MODULE'
     callback_dflt_str = u"functools.partial(itertools.imap, lambda x: print('{}'.format(x.__name__)) or x)"
 
     module_callback_group = parser.add_argument_group(
         u'modules and callbacks',
         description=u"""
-{eval_callback_metavar} is an expression that evaluates to a callable that takes a single value.
-The return value of each callback is passed to the next callback in the chain.
+{eval_callback_metavar} can be one of two formats: "CALLBACK_EXPR[, ARGS_EXPR[, KW_EXPR]]" or "@FILE:CALLBACK_NAME".
+The first format is an expression that evaluates to a callable (with optional args and kw that will be passed back to it).
+The second is a reference to a path to a file and symbol name within that file.
+(Note that the second form begins with a "@" character.)
+All {eval_callback_metavar}s must be suitable for appending to a Twisted Deferred's callback chain.
 The iterable passed to the first callback in the chain will be all loaded (and discovered) {mod_spec_metavar}s.
-The default callback chain consists of single callable that will print out each loaded module and return the module object: ``{callback_dflt}``.
+The default callback chain consists of single callback that will print out each loaded module and return the module object: ``{callback_dflt}``.
 {mod_spec_metavar} is a fully qualified module name suitable for use in an import statement.
 Import errors are always ignored when attempting to discover sub-modules and sub-packages.
 """.strip().format(callback_dflt=native_str(callback_dflt_str), eval_callback_metavar=eval_callback_metavar, mod_spec_metavar=mod_spec_metavar),
     )
 
-    callbacks_dest = 'callbacks'
+    callbacks_dest = 'deferred'
 
     import functools
     import itertools
@@ -266,11 +326,18 @@ Import errors are always ignored when attempting to discover sub-modules and sub
         itertools.__name__: itertools,
     }
 
-    callbacks_dflt = [eval(callback_dflt_str, ns, ns)]
+    callback, callback_args, callback_kw = CallbackAppender.evalcallback(callback_dflt_str, ns)
+    callbacks_dflt = t_i_defer.Deferred()
+    callbacks_dflt.addCallback(callback, *callback_args, **callback_kw)
+    callback_options = (u'-c', u'--add-callback')
+    callbacks_options = (u'-C', u'--add-callbacks')
+    errback_options = (u'-e', u'--add-errback')
+    both_options = (u'-b', u'--add-both')
+    callback_appender = CallbackAppender.factory(errback_options, both_options)
 
     module_callback_group.add_argument(
-        u'-C',
-        action=EvalAppender,
+        u'-D',
+        action=callback_appender,
         default=callbacks_dflt,
         dest=callbacks_dest,
         help=u'clear the callback chain of all prior callbacks',
@@ -279,21 +346,39 @@ Import errors are always ignored when attempting to discover sub-modules and sub
     )
 
     module_callback_group.add_argument(
-        u'-e',
-        action=EvalAppender,
+        *callback_options,
+        action=callback_appender,
         dest=callbacks_dest,
-        help=u'evaluate each {eval_callback_metavar} add it to the callback chain'.format(eval_callback_metavar=eval_callback_metavar),
+        help=u'add {eval_callback_metavar} as a callback'.format(eval_callback_metavar=eval_callback_metavar),
         metavar=eval_callback_metavar,
-        nargs='+',
+        nargs=1
     )
 
     module_callback_group.add_argument(
-        u'-f',
-        action=FileSymbolAppender,
+        *errback_options,
+        action=callback_appender,
         dest=callbacks_dest,
-        help=u'load each {file_callback_metavar} add it to the callback chain'.format(file_callback_metavar=file_callback_metavar),
-        metavar=file_callback_metavar,
-        nargs='+',
+        help=u'add {eval_callback_metavar} as an errback'.format(eval_callback_metavar=eval_callback_metavar),
+        metavar=eval_callback_metavar,
+        nargs=1
+    )
+
+    module_callback_group.add_argument(
+        *both_options,
+        action=callback_appender,
+        dest=callbacks_dest,
+        help=u'add {eval_callback_metavar} to as both a callback and an errback'.format(eval_callback_metavar=eval_callback_metavar),
+        metavar=eval_callback_metavar,
+        nargs=1
+    )
+
+    module_callback_group.add_argument(
+        *callbacks_options,
+        action=callback_appender,
+        dest=callbacks_dest,
+        help=u'add the first {eval_callback_metavar} as a callback and the second {eval_callback_metavar} as an errback'.format(eval_callback_metavar=eval_callback_metavar),
+        metavar=eval_callback_metavar,
+        nargs=2
     )
 
     imported_modules_metavar = mod_spec_metavar

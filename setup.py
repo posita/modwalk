@@ -29,6 +29,7 @@ __all__ = ()
 _MY_DIR = os.path.abspath(os.path.dirname(inspect.stack()[0][1]))
 
 INSTALL_REQUIRES = (
+    'Twisted',
     'future',
 )
 

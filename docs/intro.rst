@@ -59,7 +59,10 @@ Python 2.6 will *not* work.
 
 ``modwalk`` has the following dependencies (which will be installed automatically):
 
+* |Twisted|_
 * |future|_
 
+.. |Twisted| replace:: ``Twisted``
+.. _`Twisted`: https://twistedmatrix.com/
 .. |future| replace:: ``future``
 .. _`future`: http://python-future.org/

@@ -22,8 +22,12 @@
 /dist/
 /docs/_build/
 /docs/_static/
+/docs/modules.rst
+/docs/modwalk.*.rst
+/docs/modwalk.rst
 /htmlcov/
 __pycache__/
+_trial_temp/
 flycheck_*.py
 
 # Compiled objects

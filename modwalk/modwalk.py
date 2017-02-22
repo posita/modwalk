@@ -33,7 +33,6 @@ import re
 
 __all__ = (
     'modgen',
-    'modwalk',
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -122,24 +121,3 @@ def modgen(mod_specs):
                         new_mod_specs.appendleft((new_mod, recurse))
 
             mod_specs.extendleft(new_mod_specs)
-
-# ========================================================================
-def modwalk(mod_specs, callbacks):
-    """
-    TODO
-    """
-    pipeline = modgen(mod_specs)
-
-    for callback in callbacks:
-        callback_name = getattr(callback, '__name__', repr(callable))
-        _LOGGER.debug('adding %s to callback pipeline', callback_name)
-        pipeline = callback(pipeline)
-
-    try:
-        pipeline = iter(pipeline)
-    except TypeError:
-        # pipeline was not iterable, so assume it was already consumed
-        pass
-    else:
-        # Make sure pipeline is consumed
-        collections.deque(pipeline, maxlen=0)
