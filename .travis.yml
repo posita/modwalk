@@ -19,6 +19,14 @@ python:
     - "3.6"
     - "pypy3"
 
+env:
+    - TWISTED="15"
+    - TWISTED="16"
+    - TWISTED="17.1"
+    - TWISTED="17.5"
+    - TWISTED="17.9"
+    - TWISTED="trunk"
+
 install:
     - pip install coveralls tox-travis
 
@@ -26,6 +34,9 @@ matrix:
     allow_failures:
         # PyPy3 is experimental
         - python: "pypy3"
+
+        # Twisted trunk is experimental
+        - env: TWISTED="trunk"
 
 script:
     - tox
