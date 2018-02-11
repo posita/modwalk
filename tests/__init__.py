@@ -48,4 +48,11 @@ if not hasattr(unittest.TestCase, 'assertRaisesRegex'):
 if not hasattr(unittest.TestCase, 'assertRegex'):
     setattr(unittest.TestCase, 'assertRegex', six.assertRegex)
 
+# TODO: Add this back if six ever supports assertNotRegex
+if hasattr(unittest.TestCase, 'assertNotRegex'):
+    delattr(unittest.TestCase, 'assertNotRegex')
+
+if hasattr(unittest.TestCase, 'assertNotRegexpMatches'):
+    delattr(unittest.TestCase, 'assertNotRegexpMatches')
+
 configlogging()
