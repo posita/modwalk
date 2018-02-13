@@ -53,9 +53,9 @@ _LOGGER = logging.getLogger(__name__)
 _T_LOGGER = t_logger.Logger(__name__)
 _T_LOG_OBSERVER = t_logger.STDLibLogObserver()
 
-_LOG_LVL_ENV = 'LOG_LVL'
-_LOG_FMT_DFLT = '%(message)s'
 _LOG_FMT_ENV = 'LOG_FMT'
+_LOG_FMT_DFLT = '%(message)s'
+_LOG_LVL_ENV = 'LOG_LVL'
 _LOG_LVL_DFLT = logging.getLevelName(logging.WARNING)
 
 # ---- Classes -----------------------------------------------------------
@@ -66,7 +66,10 @@ class CallbackAppender(argparse.Action):
     # ---- Class methods -------------------------------------------------
 
     @classmethod
-    def evalcallback(cls, value, ns):
+    def evalcallback(cls,
+        value,
+        ns,
+    ):
         args = ()
         kw = {}
 
@@ -95,12 +98,18 @@ class CallbackAppender(argparse.Action):
         return (callback, args, kw)
 
     @classmethod
-    def factory(cls, errback_options=(), both_options=()):
+    def factory(cls,
+        errback_options=(),
+        both_options=(),
+    ):
         return lambda *_args, **_kw: cls(errback_options, both_options, *_args, **_kw)
 
     # ---- Constructor ---------------------------------------------------
 
-    def __init__(self, errback_options, both_options, *args, **kw):
+    def __init__(self,
+        errback_options,  # type: typing.Tuple[typing.Text, ...]
+        both_options,  # type: typing.Tuple[typing.Text, ...]
+    *args, **kw):  # type: (...) -> None
         super(CallbackAppender, self).__init__(*args, **kw)
         self._both_options = set(both_options)
         self._errback_options = set(errback_options)
@@ -186,7 +195,9 @@ class ModuleAppender(argparse.Action):
 
     # ---- Constructor ---------------------------------------------------
 
-    def __init__(self, should_recurse, *args, **kw):
+    def __init__(self,
+        should_recurse,  # type: bool
+    *args, **kw):  # type: (...) -> None
         super(ModuleAppender, self).__init__(*args, **kw)
         self._should_recurse = int(bool(should_recurse))
 
@@ -280,12 +291,12 @@ def _main(
 def _parser(
     prog=None,  # type: typing.Optional[typing.Text]
 ):  # type: (...) -> argparse.ArgumentParser
-    description = u"""
+    description = """
 Invoke callback chains on loaded modules.
 """.strip()
 
-    log_lvls = u', '.join(u'"{}"'.format(logging.getLevelName(l)) for l in (logging.CRITICAL, logging.ERROR, logging.WARNING, logging.INFO, logging.DEBUG))
-    epilog = u"""
+    log_lvls = ', '.join('"{}"'.format(logging.getLevelName(l)) for l in (logging.CRITICAL, logging.ERROR, logging.WARNING, logging.INFO, logging.DEBUG))
+    epilog = """
 The environment variables {log_lvl} and {log_fmt} can be used to configure logging output.
 If set, {log_lvl} must be an integer, or one of (from least to most verbose): {log_lvls}.
 It defaults to "{log_lvl_dflt}".
@@ -295,15 +306,15 @@ It defaults to "{log_fmt_dflt}".
 
     parser = argparse.ArgumentParser(prog=prog, description=description, epilog=epilog)
 
-    parser.add_argument(u'-V', u'--version', action='version', version=u'%(prog)s {}'.format(__release__))
+    parser.add_argument('-V', '--version', action='version', version='%(prog)s {}'.format(__release__))
 
-    eval_callback_metavar = u'CALLBACK'
-    mod_spec_metavar = u'MODULE'
-    callback_dflt_str = u"functools.partial(itertools.imap, lambda x: print('{}'.format(x.__name__)) or x)"
+    eval_callback_metavar = 'CALLBACK'
+    mod_spec_metavar = 'MODULE'
+    callback_dflt_str = "functools.partial(itertools.imap, lambda x: print('{}'.format(x.__name__)) or x)"
 
     module_callback_group = parser.add_argument_group(
-        u'modules and callbacks',
-        description=u"""
+        'modules and callbacks',
+        description="""
 {eval_callback_metavar} can be one of two formats: "CALLBACK_EXPR[, ARGS_EXPR[, KW_EXPR]]" or "@FILE:CALLBACK_NAME".
 The first format is an expression that evaluates to a callable (with optional args and kw that will be passed back to it).
 The second is a reference to a path to a file and symbol name within that file.
@@ -329,18 +340,18 @@ Import errors are always ignored when attempting to discover sub-modules and sub
     callback, callback_args, callback_kw = CallbackAppender.evalcallback(callback_dflt_str, ns)
     callbacks_dflt = t_i_defer.Deferred()
     callbacks_dflt.addCallback(callback, *callback_args, **callback_kw)
-    callback_options = (u'-c', u'--add-callback')
-    callbacks_options = (u'-C', u'--add-callbacks')
-    errback_options = (u'-e', u'--add-errback')
-    both_options = (u'-b', u'--add-both')
+    callback_options = ('-c', '--add-callback')
+    callbacks_options = ('-C', '--add-callbacks')
+    errback_options = ('-e', '--add-errback')
+    both_options = ('-b', '--add-both')
     callback_appender = CallbackAppender.factory(errback_options, both_options)
 
     module_callback_group.add_argument(
-        u'-D',
+        '-D',
         action=callback_appender,
         default=callbacks_dflt,
         dest=callbacks_dest,
-        help=u'clear the callback chain of all prior callbacks',
+        help='clear the callback chain of all prior callbacks',
         metavar=eval_callback_metavar,
         nargs=0,
     )
@@ -349,56 +360,56 @@ Import errors are always ignored when attempting to discover sub-modules and sub
         *callback_options,
         action=callback_appender,
         dest=callbacks_dest,
-        help=u'add {eval_callback_metavar} as a callback'.format(eval_callback_metavar=eval_callback_metavar),
+        help='add {eval_callback_metavar} as a callback'.format(eval_callback_metavar=eval_callback_metavar),
         metavar=eval_callback_metavar,
-        nargs=1
+        nargs=1  # ,
     )
 
     module_callback_group.add_argument(
         *errback_options,
         action=callback_appender,
         dest=callbacks_dest,
-        help=u'add {eval_callback_metavar} as an errback'.format(eval_callback_metavar=eval_callback_metavar),
+        help='add {eval_callback_metavar} as an errback'.format(eval_callback_metavar=eval_callback_metavar),
         metavar=eval_callback_metavar,
-        nargs=1
+        nargs=1  # ,
     )
 
     module_callback_group.add_argument(
         *both_options,
         action=callback_appender,
         dest=callbacks_dest,
-        help=u'add {eval_callback_metavar} to as both a callback and an errback'.format(eval_callback_metavar=eval_callback_metavar),
+        help='add {eval_callback_metavar} to as both a callback and an errback'.format(eval_callback_metavar=eval_callback_metavar),
         metavar=eval_callback_metavar,
-        nargs=1
+        nargs=1  # ,
     )
 
     module_callback_group.add_argument(
         *callbacks_options,
         action=callback_appender,
         dest=callbacks_dest,
-        help=u'add the first {eval_callback_metavar} as a callback and the second {eval_callback_metavar} as an errback'.format(eval_callback_metavar=eval_callback_metavar),
+        help='add the first {eval_callback_metavar} as a callback and the second {eval_callback_metavar} as an errback'.format(eval_callback_metavar=eval_callback_metavar),
         metavar=eval_callback_metavar,
-        nargs=2
+        nargs=2  # ,
     )
 
     imported_modules_metavar = mod_spec_metavar
     imported_modules_dest = 'imported_modules'
 
     module_callback_group.add_argument(
-        u'-I',
+        '-I',
         action=ImportAppender,
         default={},
         dest=imported_modules_dest,
-        help=u'clear all {imported_modules_metavar}s loaded into scope for evaluating any prior {eval_callback_metavar}'.format(eval_callback_metavar=eval_callback_metavar, imported_modules_metavar=imported_modules_metavar),
+        help='clear all {imported_modules_metavar}s loaded into scope for evaluating any prior {eval_callback_metavar}'.format(eval_callback_metavar=eval_callback_metavar, imported_modules_metavar=imported_modules_metavar),
         metavar=imported_modules_metavar,
         nargs=0,
     )
 
     module_callback_group.add_argument(
-        u'-i',
+        '-i',
         action=ImportAppender,
         dest=imported_modules_dest,
-        help=u'load each {imported_modules_metavar} into scope for evaluating any subsequent {eval_callback_metavar}'.format(eval_callback_metavar=eval_callback_metavar, imported_modules_metavar=imported_modules_metavar),
+        help='load each {imported_modules_metavar} into scope for evaluating any subsequent {eval_callback_metavar}'.format(eval_callback_metavar=eval_callback_metavar, imported_modules_metavar=imported_modules_metavar),
         metavar=imported_modules_metavar,
         nargs='+',
     )
@@ -406,20 +417,20 @@ Import errors are always ignored when attempting to discover sub-modules and sub
     mod_specs_dest = 'mod_specs'
 
     module_callback_group.add_argument(
-        u'-M',
+        '-M',
         action=ModuleAppender.factory(True),
         default=[],
         dest=mod_specs_dest,
-        help=u'load each {mod_spec_metavar} and discover and load any sub-modules or sub-packages for passing to the first callback in the chain'.format(mod_spec_metavar=mod_spec_metavar),
+        help='load each {mod_spec_metavar} and discover and load any sub-modules or sub-packages for passing to the first callback in the chain'.format(mod_spec_metavar=mod_spec_metavar),
         metavar=mod_spec_metavar,
         nargs='+',
     )
 
     module_callback_group.add_argument(
-        u'-m',
+        '-m',
         action=ModuleAppender.factory(False),
         dest=mod_specs_dest,
-        help=u'load each {mod_spec_metavar} for passing to the first callback in the chain'.format(mod_spec_metavar=mod_spec_metavar),
+        help='load each {mod_spec_metavar} for passing to the first callback in the chain'.format(mod_spec_metavar=mod_spec_metavar),
         metavar=mod_spec_metavar,
         nargs='+',
     )
@@ -427,18 +438,18 @@ Import errors are always ignored when attempting to discover sub-modules and sub
     suppress_import_errors_dest = 'suppress_import_errors'
 
     module_callback_group.add_argument(
-        u'-S',
+        '-S',
         action='store_false',
         default=False,
         dest=suppress_import_errors_dest,
-        help=u'DO NOT suppress import errors for {eval_callback_metavar}s and explicitly named {mod_spec_metavar}s (default)'.format(eval_callback_metavar=eval_callback_metavar, mod_spec_metavar=mod_spec_metavar),
+        help='DO NOT suppress import errors for {eval_callback_metavar}s and explicitly named {mod_spec_metavar}s (default)'.format(eval_callback_metavar=eval_callback_metavar, mod_spec_metavar=mod_spec_metavar),
     )
 
     module_callback_group.add_argument(
-        u'-s',
+        '-s',
         action='store_true',
         dest=suppress_import_errors_dest,
-        help=u'suppress import errors for {eval_callback_metavar}s and explicitly named {mod_spec_metavar}s'.format(eval_callback_metavar=eval_callback_metavar, mod_spec_metavar=mod_spec_metavar),
+        help='suppress import errors for {eval_callback_metavar}s and explicitly named {mod_spec_metavar}s'.format(eval_callback_metavar=eval_callback_metavar, mod_spec_metavar=mod_spec_metavar),
     )
 
     return parser
