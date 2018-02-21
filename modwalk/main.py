@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 from builtins import *  # noqa: F401,F403 # pylint: disable=redefined-builtin,unused-wildcard-import,useless-suppression,wildcard-import
 from future.builtins.disabled import *  # noqa: F401,F403 # pylint: disable=no-name-in-module,redefined-builtin,unused-wildcard-import,useless-suppression,wildcard-import
 from future.utils import native_str
-from past.builtins import execfile  # type: ignore
+from past.builtins import execfile
 
 # ---- Imports -----------------------------------------------------------
 
@@ -45,7 +45,7 @@ from .modwalk import (
 
 from .version import __release__
 
-# ---- Constants ---------------------------------------------------------
+# ---- Data --------------------------------------------------------------
 
 __all__ = ()
 
@@ -66,9 +66,10 @@ class CallbackAppender(argparse.Action):
     # ---- Class methods -------------------------------------------------
 
     @classmethod
-    def evalcallback(cls,
-        value,
-        ns,
+    def evalcallback(
+            cls,
+            value,
+            ns,
     ):
         args = ()
         kw = {}
@@ -98,18 +99,21 @@ class CallbackAppender(argparse.Action):
         return (callback, args, kw)
 
     @classmethod
-    def factory(cls,
-        errback_options=(),
-        both_options=(),
+    def factory(
+            cls,
+            errback_options=(),
+            both_options=(),
     ):
         return lambda *_args, **_kw: cls(errback_options, both_options, *_args, **_kw)
 
     # ---- Constructor ---------------------------------------------------
 
-    def __init__(self,
-        errback_options,  # type: typing.Tuple[typing.Text, ...]
-        both_options,  # type: typing.Tuple[typing.Text, ...]
-    *args, **kw):  # type: (...) -> None
+    def __init__(
+            self,
+            errback_options,  # type: typing.Tuple[typing.Text, ...]
+            both_options,  # type: typing.Tuple[typing.Text, ...]
+            *args, **kw
+    ):  # type: (...) -> None
         super(CallbackAppender, self).__init__(*args, **kw)
         self._both_options = set(both_options)
         self._errback_options = set(errback_options)
@@ -195,9 +199,11 @@ class ModuleAppender(argparse.Action):
 
     # ---- Constructor ---------------------------------------------------
 
-    def __init__(self,
-        should_recurse,  # type: bool
-    *args, **kw):  # type: (...) -> None
+    def __init__(
+            self,
+            should_recurse,  # type: bool
+            *args, **kw
+    ):  # type: (...) -> None
         super(ModuleAppender, self).__init__(*args, **kw)
         self._should_recurse = int(bool(should_recurse))
 
@@ -224,7 +230,8 @@ class ModuleAppender(argparse.Action):
 # ---- Functions ---------------------------------------------------------
 
 # ========================================================================
-def configlogging():  # type: (...) -> None
+def configlogging():
+    # type: (...) -> None
     log_lvl_name = os.environ.get(_LOG_LVL_ENV) or _LOG_LVL_DFLT
 
     try:
@@ -241,13 +248,14 @@ def configlogging():  # type: (...) -> None
     t_logger.globalLogBeginner.beginLoggingTo((_T_LOG_OBSERVER,), redirectStandardIO=False)
 
 # ========================================================================
-def main():  # type: (...) -> None
+def main():
+    # type: (...) -> None
     configlogging()
     sys.exit(_main())
 
 # ========================================================================
 def _main(
-    argv=None,  # type: typing.Optional[typing.Sequence[typing.Text]]
+        argv=None,  # type: typing.Optional[typing.Sequence[typing.Text]]
 ):  # type: (...) -> int
     parser = _parser()
     namespace = parser.parse_args(argv)
@@ -289,7 +297,7 @@ def _main(
 
 # ========================================================================
 def _parser(
-    prog=None,  # type: typing.Optional[typing.Text]
+        prog=None,  # type: typing.Optional[typing.Text]
 ):  # type: (...) -> argparse.ArgumentParser
     description = """
 Invoke callback chains on loaded modules.

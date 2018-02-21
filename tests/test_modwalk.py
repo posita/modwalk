@@ -27,7 +27,7 @@ from future.builtins.disabled import *  # noqa: F401,F403 # pylint: disable=no-n
 import logging
 import unittest
 
-# ---- Constants ---------------------------------------------------------
+# ---- Data --------------------------------------------------------------
 
 __all__ = ()
 
@@ -42,7 +42,8 @@ class ModwalkTestCase(unittest.TestCase):
 
     # ---- Public hooks --------------------------------------------------
 
-    def test_modwalk(self):  # type: (...) -> None
+    def test_modwalk(self):
+        # type: (...) -> None
         pass
 
 # ---- Initialization ----------------------------------------------------
