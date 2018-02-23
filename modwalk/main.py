@@ -21,7 +21,11 @@ if TYPE_CHECKING:
 from builtins import *  # noqa: F401,F403 # pylint: disable=redefined-builtin,unused-wildcard-import,useless-suppression,wildcard-import
 from future.builtins.disabled import *  # noqa: F401,F403 # pylint: disable=no-name-in-module,redefined-builtin,unused-wildcard-import,useless-suppression,wildcard-import
 from future.utils import native_str
-from past.builtins import execfile
+# Starting with 17.9, Twisted has its own execfile forward-port for
+# Python 3. Somehow, this confuses MyPy into thinking it has already
+# been defined at this point, most likely via one of the wildcard
+# imports above. (Perhaps Twisted attempts to patch builtins?)
+from past.builtins import execfile  # type: ignore
 
 # ---- Imports -----------------------------------------------------------
 
