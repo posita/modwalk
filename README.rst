@@ -17,9 +17,9 @@ All rights not expressly waived or licensed are reserved.
 If those files are missing or appear to be modified from their originals, then please contact the author before viewing or using this software in any capacity.
 
 .. |LICENSE| replace:: ``LICENSE``
-.. _`LICENSE`: https://_skel.readthedocs.org/en/master/LICENSE.html
+.. _`LICENSE`: https://modwalk.readthedocs.org/en/master/LICENSE.html
 .. |CREDITS| replace:: ``CREDITS``
-.. _`CREDITS`: https://_skel.readthedocs.org/en/master/CREDITS.html
+.. _`CREDITS`: https://modwalk.readthedocs.org/en/master/CREDITS.html
 
 .. image:: https://travis-ci.org/posita/modwalk.svg?branch=master
    :target: https://travis-ci.org/posita/modwalk?branch=master
