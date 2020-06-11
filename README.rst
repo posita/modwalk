@@ -64,6 +64,8 @@ Jeff Knupp (|@jeffknupp|_) `describes how <https://www.jeffknupp.com/blog/2013/0
 
 ..
 
+**UPDATE: This project is no longer maintained or supported. Issues, pull requests, and other contributions will be ignored.**
+
 ``modwalk`` is TODO.
 It is licensed under the `MIT License <https://opensource.org/licenses/MIT>`_.
 See the |LICENSE|_ file for details.
@@ -80,5 +82,5 @@ Coming soon.
 Issues
 ------
 
-If you find a bug, or want a feature, please `file an issue <https://github.com/posita/modwalk/issues>`__ (if it hasn't already been filed).
-If you're willing and able, consider `contributing <https://modwalk.readthedocs.org/en/master/contrib.html>`__.
+``modwalk`` did what I needed when I needed it, but I have no interested in maintaining it further.
+`Issues <https://github.com/posita/modwalk/issues>`__ and other `contributions <https://modwalk.readthedocs.org/en/master/contrib.html>`__ are no longer considered.
